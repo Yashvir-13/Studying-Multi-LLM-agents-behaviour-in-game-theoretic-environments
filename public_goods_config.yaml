@@ -1,0 +1,40 @@
+# ============================================================
+# Default Experiment Configuration — Public Goods Game
+# ============================================================
+# Usage: python main.py --mode sweep --config public_goods_config.yaml
+# ============================================================
+
+# --- LLM Model Settings ---
+model: "qwen3.5:9b"
+temperature: 0.7
+num_predict: 64
+think: false
+
+# --- Sweep Grid ---
+# Each parameter is a list; the sweep runs ALL combinations.
+# Total configs = len(num_agents) × len(multiplier) × len(memory_limit)
+num_agents: [3, 5]
+multiplier: [1.2, 2.0]
+memory_limit: [1, 3]
+
+# --- Simulation Parameters ---
+rounds: 20
+trials_per_config: 15
+initial_endowment: 10
+
+# Observation type controls what agents see about others:
+#   "full"    → agents see all individual contributions
+#   "partial" → agents see only total pool and own reward
+#   "private" → agents see only their own reward
+observation_type: "full"
+
+# Agent type:
+#   "llm"              → LLM-driven agent (requires Ollama)
+#   "always_cooperate"  → Always contribute max
+#   "always_defect"     → Always contribute 0
+#   "random"            → Random contribution
+#   "tit_for_tat"       → Copy average of others
+agent_type: "llm"
+
+# --- Output ---
+base_output_dir: "logs"
