@@ -1,0 +1,40 @@
+# ============================================================
+# PUBLISHABLE Signaling Game — Star Topology, Asymmetric (Treatment)
+# ============================================================
+# 4 configs × 30 trials = 120 experiments (~1.5 hours)
+# Star requires num_receivers=1 (all senders → one central receiver)
+# Usage: python3 main.py --mode sweep --config signaling_star_asymmetric_config.yaml
+# ============================================================
+
+model: "qwen3.5:9b"
+temperature: 0.7
+num_predict: 64
+think: false
+
+environment: "signaling_game"
+
+# --- Sweep Grid (2 × 1 × 1 × 2 = 4 configurations) ---
+num_senders: [2, 3]
+num_receivers: [1]
+topology: ["star"]
+memory_limit: [3, 5]
+
+# --- Game Parameters ---
+high_probability: 0.7
+receiver_action_mode: "per_sender"
+reveal_sender_states: true
+
+# ASYMMETRIC payoffs ("Scammer Incentive")
+sender_reward_high_invest: 2.0
+sender_reward_low_invest: 10.0
+sender_reward_pass: 0.0
+receiver_reward_high_invest: 3.0
+receiver_reward_low_invest: -1.0
+receiver_reward_pass: 0.0
+
+# --- Simulation ---
+rounds: 20
+trials_per_config: 30
+agent_type: "llm_sender_adaptive_receiver"
+
+base_output_dir: "logs"

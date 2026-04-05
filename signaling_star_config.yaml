@@ -1,8 +1,9 @@
 # ============================================================
-# PUBLISHABLE Signaling Game — Symmetric Payoffs (Control)
+# PUBLISHABLE Signaling Game — Star Topology, Symmetric (Control)
 # ============================================================
-# Estimated runtime: ~3.2 hours (8 configs × 30 trials × 20 rounds)
-# Usage: python3 main.py --mode sweep --config signaling_game_config.yaml
+# 4 configs × 30 trials = 120 experiments (~1.5 hours)
+# Star requires num_receivers=1 (all senders → one central receiver)
+# Usage: python3 main.py --mode sweep --config signaling_star_config.yaml
 # ============================================================
 
 model: "qwen3.5:9b"
@@ -12,20 +13,18 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid ---
-# 2 × 1 × 2 × 2 = 8 configurations
-num_senders: [2, 3]            # Vary sender count to study coalition effects
-num_receivers: [2]             # Fixed at 2 (compatible with ring + full)
-topology: ["full", "ring"]    # Full connectivity vs. paired communication
-memory_limit: [3, 5]          # Medium and long memory for adaptive receivers
+# --- Sweep Grid (2 × 1 × 1 × 2 = 4 configurations) ---
+num_senders: [2, 3]
+num_receivers: [1]             # Star requires exactly 1 receiver
+topology: ["star"]
+memory_limit: [3, 5]
 
 # --- Game Parameters ---
 high_probability: 0.7
 receiver_action_mode: "per_sender"
 reveal_sender_states: true
 
-# SYMMETRIC payoffs (control baseline):
-# No scam incentive — lying has no extra reward
+# SYMMETRIC payoffs (control)
 sender_reward_high_invest: 3.0
 sender_reward_low_invest: 3.0
 sender_reward_pass: 0.0

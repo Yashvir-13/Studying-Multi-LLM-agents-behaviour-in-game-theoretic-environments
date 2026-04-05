@@ -48,7 +48,7 @@ class ExperimentRunner:
                 f"_A{action_mode}_F{reveal_flag}"
             )
         else:
-            base = f"A{config['num_agents']}_M{config['multiplier']}_Mem{config['memory_limit']}"
+            base = f"A{config['num_agents']}_M{config['multiplier']}_Mem{config['memory_limit']}_O{config.get('observation_type', 'full')}"
         
         if agent_type != "llm":
             base += f"_{agent_type}"
@@ -92,7 +92,7 @@ class ExperimentRunner:
         if env_type == "signaling_game":
             keys = ["num_senders", "num_receivers", "topology", "memory_limit"]
         else:
-            keys = ["num_agents", "multiplier", "memory_limit"]
+            keys = ["num_agents", "multiplier", "memory_limit", "observation_type"]
         
         values = [sweep_config[k] for k in keys]
         combinations = list(itertools.product(*values))
@@ -156,7 +156,6 @@ class ExperimentRunner:
                 config["receiver_reward_pass"] = sweep_config.get("receiver_reward_pass", 0.0)
             else:
                 config["initial_endowment"] = sweep_config.get("initial_endowment", 10)
-                config["observation_type"] = sweep_config.get("observation_type", "full")
             
             config_key = self._config_key(config)
             

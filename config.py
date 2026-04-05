@@ -137,11 +137,12 @@ class ExperimentConfig:
                 "receiver_reward_pass": self.receiver_reward_pass,
             })
         else:
+            obs = self.observation_type if isinstance(self.observation_type, list) else [self.observation_type]
             base.update({
                 "num_agents": self.num_agents,
                 "multiplier": self.multiplier,
                 "initial_endowment": self.initial_endowment,
-                "observation_type": self.observation_type,
+                "observation_type": obs,
             })
         
         return base
