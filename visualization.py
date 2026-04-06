@@ -439,6 +439,309 @@ def plot_signaling_results(file_path):
     print("All signaling game plots generated successfully.")
 
 
+# ================================================================
+# SUMMARY VISUALIZATIONS FOR LARGE SWEEPS
+# ================================================================
+
+def plot_signaling_summary(file_path):
+    """
+    Generates publication-quality summary plots for large signaling sweeps.
+    
+    Instead of 54 overlapping time-series, produces:
+      1. Heatmap grids: S×R matrix for each topology×memory combo
+      2. Faceted time-series: one subplot per topology×memory group
+      3. Parameter effect bar charts: marginal effect of each dimension
+    """
+    print(f"Generating signaling summary plots from {file_path}...")
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    
+    output_dir = os.path.dirname(file_path)
+    summary_dir = os.path.join(output_dir, "summary_plots")
+    os.makedirs(summary_dir, exist_ok=True)
+    
+    # Extract unique parameter values
+    topologies = sorted(set(e['config'].get('topology', '?') for e in data))
+    memories = sorted(set(e['config'].get('memory_limit', 0) for e in data))
+    senders = sorted(set(e['config'].get('num_senders', 0) for e in data))
+    receivers = sorted(set(e['config'].get('num_receivers', 0) for e in data))
+    
+    # Metrics to plot
+    metric_defs = [
+        ('mean_deception_rate', 'Deception Rate', 'deception'),
+        ('mean_trust_rate', 'Trust Rate', 'trust'),
+        ('mean_deception_success', 'Deception Success Rate', 'deception_success'),
+        ('mean_receiver_accuracy', 'Receiver Accuracy', 'receiver_accuracy'),
+    ]
+    
+    # Build lookup dict: (topology, memory, senders, receivers) -> entry
+    lookup = {}
+    for entry in data:
+        c = entry['config']
+        key = (c.get('topology'), c.get('memory_limit'), c.get('num_senders'), c.get('num_receivers'))
+        lookup[key] = entry
+    
+    # ========================================
+    # 1. HEATMAP GRIDS: one figure per metric
+    # ========================================
+    for metric_key, metric_title, metric_slug in metric_defs:
+        n_topo = len(topologies)
+        n_mem = len(memories)
+        
+        if n_topo == 0 or n_mem == 0:
+            continue
+        
+        fig, axes = plt.subplots(n_topo, n_mem, figsize=(4 * n_mem + 1, 4 * n_topo + 0.5),
+                                  squeeze=False)
+        
+        for ti, topo in enumerate(topologies):
+            for mi, mem in enumerate(memories):
+                ax = axes[ti][mi]
+                
+                # Build S×R matrix of average metric value
+                matrix = np.full((len(senders), len(receivers)), np.nan)
+                for si, s in enumerate(senders):
+                    for ri, r in enumerate(receivers):
+                        entry = lookup.get((topo, mem, s, r))
+                        if entry and metric_key in entry['metrics']:
+                            vals = entry['metrics'][metric_key]
+                            valid = [v for v in vals if v is not None]
+                            matrix[si][ri] = np.mean(valid) if valid else np.nan
+                
+                im = ax.imshow(matrix, cmap='RdYlGn_r' if 'deception' in metric_slug else 'RdYlGn',
+                               vmin=0, vmax=1, aspect='auto', origin='lower')
+                
+                # Annotate cells
+                for si in range(len(senders)):
+                    for ri in range(len(receivers)):
+                        val = matrix[si][ri]
+                        if not np.isnan(val):
+                            color = 'white' if val > 0.6 or val < 0.2 else 'black'
+                            ax.text(ri, si, f'{val:.0%}', ha='center', va='center',
+                                    fontsize=10, fontweight='bold', color=color)
+                
+                ax.set_xticks(range(len(receivers)))
+                ax.set_xticklabels([str(r) for r in receivers])
+                ax.set_yticks(range(len(senders)))
+                ax.set_yticklabels([str(s) for s in senders])
+                
+                if ti == n_topo - 1:
+                    ax.set_xlabel('Receivers', fontsize=10)
+                if mi == 0:
+                    ax.set_ylabel(f'{topo.upper()}\nSenders', fontsize=10)
+                
+                ax.set_title(f'Mem={mem}', fontsize=11)
+        
+        fig.suptitle(f'{metric_title} — Average Across All Rounds\n(rows=topology, cols=memory)',
+                     fontsize=14, fontweight='bold')
+        fig.colorbar(im, ax=axes, shrink=0.6, label=metric_title)
+        plt.tight_layout(rect=[0, 0, 0.92, 0.93])
+        
+        path = os.path.join(summary_dir, f'heatmap_{metric_slug}.png')
+        fig.savefig(path, dpi=150)
+        print(f"  Saved {path}")
+        plt.close(fig)
+    
+    # ========================================
+    # 2. FACETED TIME-SERIES: grouped by topology × memory
+    # ========================================
+    for metric_key, metric_title, metric_slug in metric_defs:
+        n_topo = len(topologies)
+        n_mem = len(memories)
+        
+        fig, axes = plt.subplots(n_topo, n_mem, figsize=(5 * n_mem, 4 * n_topo),
+                                  squeeze=False, sharex=True, sharey=True)
+        
+        colors = plt.cm.tab10(np.linspace(0, 1, len(senders) * len(receivers)))
+        
+        for ti, topo in enumerate(topologies):
+            for mi, mem in enumerate(memories):
+                ax = axes[ti][mi]
+                cidx = 0
+                
+                for s in senders:
+                    for r in receivers:
+                        entry = lookup.get((topo, mem, s, r))
+                        if entry and metric_key in entry['metrics']:
+                            vals = entry['metrics'][metric_key]
+                            rounds = range(1, len(vals) + 1)
+                            ax.plot(rounds, vals, label=f'S{s}R{r}',
+                                    color=colors[cidx], linewidth=1.5, markersize=2, marker='o')
+                        cidx += 1
+                
+                ax.set_ylim(-0.05, 1.15)
+                ax.axhline(y=0.5, color='gray', linestyle=':', alpha=0.3)
+                ax.grid(True, alpha=0.2)
+                
+                if ti == 0:
+                    ax.set_title(f'Mem={mem}', fontsize=11)
+                if mi == 0:
+                    ax.set_ylabel(f'{topo.upper()}\n{metric_title}', fontsize=10)
+                if ti == n_topo - 1:
+                    ax.set_xlabel('Round', fontsize=10)
+                
+                if ti == 0 and mi == n_mem - 1:
+                    ax.legend(fontsize=7, loc='upper right', ncol=2)
+        
+        fig.suptitle(f'{metric_title} — Time Series by Topology × Memory', fontsize=14, fontweight='bold')
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        
+        path = os.path.join(summary_dir, f'faceted_{metric_slug}.png')
+        fig.savefig(path, dpi=150)
+        print(f"  Saved {path}")
+        plt.close(fig)
+    
+    # ========================================
+    # 3. PARAMETER EFFECT BAR CHARTS
+    # ========================================
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    bar_metrics = [
+        ('mean_deception_rate', 'Avg Deception Rate'),
+        ('mean_trust_rate', 'Avg Trust Rate'),
+        ('mean_deception_success', 'Avg Deception Success'),
+        ('mean_receiver_accuracy', 'Avg Receiver Accuracy'),
+    ]
+    
+    for ax_idx, (mk, mt) in enumerate(bar_metrics):
+        ax = axes[ax_idx // 2][ax_idx % 2]
+        
+        # Compute marginal effect by each dimension
+        dims = {
+            'Topology': ('topology', topologies),
+            'Memory': ('memory_limit', memories),
+            'Senders': ('num_senders', senders),
+            'Receivers': ('num_receivers', receivers),
+        }
+        
+        x_positions = []
+        x_labels = []
+        bar_values = []
+        bar_errors = []
+        bar_colors = ['#2196F3', '#4CAF50', '#FF9800', '#E91E63']
+        color_list = []
+        
+        offset = 0
+        for di, (dim_name, (dim_key, dim_values)) in enumerate(dims.items()):
+            for v in dim_values:
+                vals = []
+                for entry in data:
+                    if entry['config'].get(dim_key) == v and mk in entry['metrics']:
+                        series = entry['metrics'][mk]
+                        valid = [x for x in series if x is not None]
+                        if valid:
+                            vals.append(np.mean(valid))
+                
+                x_positions.append(offset)
+                x_labels.append(f'{dim_name}\n{v}')
+                bar_values.append(np.mean(vals) if vals else 0)
+                bar_errors.append(np.std(vals) if vals else 0)
+                color_list.append(bar_colors[di])
+                offset += 1
+            offset += 0.5  # gap between dimension groups
+        
+        ax.bar(x_positions, bar_values, yerr=bar_errors, color=color_list,
+               alpha=0.8, capsize=3, edgecolor='white', linewidth=0.5)
+        ax.set_xticks(x_positions)
+        ax.set_xticklabels(x_labels, fontsize=7, rotation=0)
+        ax.set_ylabel(mt, fontsize=10)
+        ax.set_ylim(0, 1)
+        ax.grid(True, axis='y', alpha=0.3)
+        ax.set_title(mt, fontsize=11, fontweight='bold')
+    
+    fig.suptitle('Parameter Effects on Signaling Game Metrics\n(marginal averages ± std)',
+                 fontsize=14, fontweight='bold')
+    plt.tight_layout(rect=[0, 0, 1, 0.93])
+    
+    path = os.path.join(summary_dir, 'parameter_effects.png')
+    fig.savefig(path, dpi=150)
+    print(f"  Saved {path}")
+    plt.close(fig)
+    
+    print(f"All summary plots saved to {summary_dir}/")
+
+
+def plot_pgg_summary(file_path):
+    """
+    Generates publication-quality summary plots for large PGG sweeps.
+    Faceted by observation_type × multiplier, lines for each agent count.
+    """
+    print(f"Generating PGG summary plots from {file_path}...")
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    
+    output_dir = os.path.dirname(file_path)
+    summary_dir = os.path.join(output_dir, "summary_plots")
+    os.makedirs(summary_dir, exist_ok=True)
+    
+    obs_types = sorted(set(e['config'].get('observation_type', 'full') for e in data))
+    multipliers = sorted(set(e['config'].get('multiplier', 1.5) for e in data))
+    agents_list = sorted(set(e['config'].get('num_agents', 3) for e in data))
+    memories = sorted(set(e['config'].get('memory_limit', 3) for e in data))
+    
+    lookup = {}
+    for entry in data:
+        c = entry['config']
+        key = (c.get('observation_type', 'full'), c.get('multiplier'), c.get('num_agents'), c.get('memory_limit'))
+        lookup[key] = entry
+    
+    metric_defs = [
+        ('mean_cooperation', 'Cooperation Rate', 'cooperation'),
+        ('mean_entropy', 'Behavioral Entropy', 'entropy'),
+        ('mean_defector_ratio', 'Defector Ratio', 'defector'),
+    ]
+    
+    # Faceted time-series: rows=obs_type, cols=multiplier, lines=agents×memory
+    for metric_key, metric_title, metric_slug in metric_defs:
+        n_obs = len(obs_types)
+        n_mult = len(multipliers)
+        
+        fig, axes = plt.subplots(n_obs, n_mult, figsize=(6 * n_mult, 4 * n_obs),
+                                  squeeze=False, sharex=True, sharey=True)
+        
+        colors = plt.cm.Set2(np.linspace(0, 1, len(agents_list) * len(memories)))
+        
+        for oi, obs in enumerate(obs_types):
+            for mi, mult in enumerate(multipliers):
+                ax = axes[oi][mi]
+                cidx = 0
+                
+                for n in agents_list:
+                    for mem in memories:
+                        entry = lookup.get((obs, mult, n, mem))
+                        if entry and metric_key in entry['metrics']:
+                            vals = entry['metrics'][metric_key]
+                            rounds = range(1, len(vals) + 1)
+                            ax.plot(rounds, vals, label=f'N{n} Mem{mem}',
+                                    color=colors[cidx], linewidth=1.5, marker='o', markersize=2)
+                        cidx += 1
+                
+                ax.set_ylim(-0.05, 1.15)
+                if metric_slug == 'cooperation':
+                    ax.axhline(y=0.0, color='red', linestyle=':', alpha=0.3, label='Nash Eq.')
+                    ax.axhline(y=1.0, color='green', linestyle=':', alpha=0.3, label='Social Opt.')
+                ax.grid(True, alpha=0.2)
+                
+                if oi == 0:
+                    ax.set_title(f'M={mult}', fontsize=11)
+                if mi == 0:
+                    ax.set_ylabel(f'{obs.upper()}\n{metric_title}', fontsize=10)
+                if oi == n_obs - 1:
+                    ax.set_xlabel('Round', fontsize=10)
+                
+                if oi == 0 and mi == n_mult - 1:
+                    ax.legend(fontsize=7, loc='best', ncol=2)
+        
+        fig.suptitle(f'{metric_title} — Faceted by Observation × Multiplier', fontsize=14, fontweight='bold')
+        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        
+        path = os.path.join(summary_dir, f'faceted_{metric_slug}.png')
+        fig.savefig(path, dpi=150)
+        print(f"  Saved {path}")
+        plt.close(fig)
+    
+    print(f"All PGG summary plots saved to {summary_dir}/")
+
+
 def auto_detect_and_plot(file_path):
     """Auto-detect environment type and call appropriate plot function."""
     with open(file_path, 'r') as f:
@@ -448,12 +751,22 @@ def auto_detect_and_plot(file_path):
         print("Empty report file.")
         return
     
-    # Detect by checking first entry's metric keys
+    n_configs = len(data)
     first_metrics = data[0].get('metrics', {})
-    if 'mean_deception_rate' in first_metrics:
+    is_signaling = 'mean_deception_rate' in first_metrics
+    
+    if is_signaling:
+        # Always generate the original per-line plots
         plot_signaling_results(file_path)
+        # For large sweeps, also generate summary plots
+        if n_configs > 8:
+            print(f"\nLarge sweep detected ({n_configs} configs). Generating summary plots...")
+            plot_signaling_summary(file_path)
     else:
         plot_sweep_results(file_path)
+        if n_configs > 8:
+            print(f"\nLarge sweep detected ({n_configs} configs). Generating summary plots...")
+            plot_pgg_summary(file_path)
 
 
 if __name__ == "__main__":
