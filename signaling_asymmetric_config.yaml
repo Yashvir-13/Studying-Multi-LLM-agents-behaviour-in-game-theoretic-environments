@@ -1,7 +1,7 @@
 # ============================================================
 # PUBLISHABLE Signaling Game — Asymmetric Payoffs (Treatment)
 # ============================================================
-# 36 configs × 30 trials = 1,080 experiments (~18 hours)
+# 54 configs × 30 trials = 1,620 experiments (~36 hours)
 # Same grid as symmetric for direct A/B comparison
 # Usage: python3 main.py --mode sweep --config signaling_asymmetric_config.yaml
 # ============================================================
@@ -13,19 +13,18 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid (3 × 3 × 2 × 2 = 36 configurations) ---
+# --- Sweep Grid (3 × 3 × 2 × 3 = 54 configurations) ---
 num_senders: [2, 3, 5]
 num_receivers: [2, 3, 5]
 topology: ["full", "ring"]
-memory_limit: [3, 5]
+memory_limit: [1, 3, 5]
 
 # --- Game Parameters ---
 high_probability: 0.7
 receiver_action_mode: "per_sender"
 reveal_sender_states: true
 
-# ASYMMETRIC payoffs ("Scammer Incentive"):
-# Scam pays 5x more than a legitimate sale
+# ASYMMETRIC payoffs ("Scammer Incentive"): scam pays 5x
 sender_reward_high_invest: 2.0
 sender_reward_low_invest: 10.0
 sender_reward_pass: 0.0

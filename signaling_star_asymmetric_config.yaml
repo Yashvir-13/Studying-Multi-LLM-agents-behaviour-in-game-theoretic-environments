@@ -1,7 +1,7 @@
 # ============================================================
 # PUBLISHABLE Signaling Game — Star Topology, Asymmetric (Treatment)
 # ============================================================
-# 6 configs × 30 trials = 180 experiments (~3 hours)
+# 9 configs × 30 trials = 270 experiments (~4.5 hours)
 # Star: all senders → one central receiver (bottleneck + scam incentive)
 # Usage: python3 main.py --mode sweep --config signaling_star_asymmetric_config.yaml
 # ============================================================
@@ -13,11 +13,11 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid (3 × 1 × 1 × 2 = 6 configurations) ---
+# --- Sweep Grid (3 × 1 × 1 × 3 = 9 configurations) ---
 num_senders: [2, 3, 5]
 num_receivers: [1]
 topology: ["star"]
-memory_limit: [3, 5]
+memory_limit: [1, 3, 5]
 
 # --- Game Parameters ---
 high_probability: 0.7

@@ -1,7 +1,7 @@
 # ============================================================
 # PUBLISHABLE Signaling Game — Symmetric Payoffs (Control)
 # ============================================================
-# 36 configs × 30 trials = 1,080 experiments (~18 hours)
+# 54 configs × 30 trials = 1,620 experiments (~36 hours)
 # Usage: python3 main.py --mode sweep --config signaling_game_config.yaml
 # ============================================================
 
@@ -12,19 +12,18 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid (3 × 3 × 2 × 2 = 36 configurations) ---
-num_senders: [2, 3, 5]        # Scale: small → large sender population
-num_receivers: [2, 3, 5]      # Scale: small → large receiver population
-topology: ["full", "ring"]    # Dense vs. sparse communication
-memory_limit: [3, 5]          # Medium and long memory for adaptive receivers
+# --- Sweep Grid (3 × 3 × 2 × 3 = 54 configurations) ---
+num_senders: [2, 3, 5]
+num_receivers: [2, 3, 5]
+topology: ["full", "ring"]
+memory_limit: [1, 3, 5]       # Near-memoryless → medium → long-term reputation
 
 # --- Game Parameters ---
 high_probability: 0.7
 receiver_action_mode: "per_sender"
 reveal_sender_states: true
 
-# SYMMETRIC payoffs (control baseline):
-# No scam incentive — lying has no extra reward
+# SYMMETRIC payoffs (control): no scam incentive
 sender_reward_high_invest: 3.0
 sender_reward_low_invest: 3.0
 sender_reward_pass: 0.0
