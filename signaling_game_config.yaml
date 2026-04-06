@@ -1,7 +1,7 @@
 # ============================================================
 # PUBLISHABLE Signaling Game — Symmetric Payoffs (Control)
 # ============================================================
-# Estimated runtime: ~3.2 hours (8 configs × 30 trials × 20 rounds)
+# 36 configs × 30 trials = 1,080 experiments (~18 hours)
 # Usage: python3 main.py --mode sweep --config signaling_game_config.yaml
 # ============================================================
 
@@ -12,11 +12,10 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid ---
-# 2 × 1 × 2 × 2 = 8 configurations
-num_senders: [2, 3]            # Vary sender count to study coalition effects
-num_receivers: [2]             # Fixed at 2 (compatible with ring + full)
-topology: ["full", "ring"]    # Full connectivity vs. paired communication
+# --- Sweep Grid (3 × 3 × 2 × 2 = 36 configurations) ---
+num_senders: [2, 3, 5]        # Scale: small → large sender population
+num_receivers: [2, 3, 5]      # Scale: small → large receiver population
+topology: ["full", "ring"]    # Dense vs. sparse communication
 memory_limit: [3, 5]          # Medium and long memory for adaptive receivers
 
 # --- Game Parameters ---

@@ -1,8 +1,8 @@
 # ============================================================
 # PUBLISHABLE Signaling Game — Star Topology, Symmetric (Control)
 # ============================================================
-# 4 configs × 30 trials = 120 experiments (~1.5 hours)
-# Star requires num_receivers=1 (all senders → one central receiver)
+# 6 configs × 30 trials = 180 experiments (~3 hours)
+# Star: all senders → one central receiver (bottleneck stress test)
 # Usage: python3 main.py --mode sweep --config signaling_star_config.yaml
 # ============================================================
 
@@ -13,8 +13,8 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid (2 × 1 × 1 × 2 = 4 configurations) ---
-num_senders: [2, 3]
+# --- Sweep Grid (3 × 1 × 1 × 2 = 6 configurations) ---
+num_senders: [2, 3, 5]        # Increasing pressure on the single receiver
 num_receivers: [1]             # Star requires exactly 1 receiver
 topology: ["star"]
 memory_limit: [3, 5]
