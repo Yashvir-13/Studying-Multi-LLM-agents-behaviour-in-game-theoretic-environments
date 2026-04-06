@@ -742,6 +742,152 @@ def plot_pgg_summary(file_path):
     print(f"All PGG summary plots saved to {summary_dir}/")
 
 
+# ================================================================
+# ISOLATED PARAMETER EFFECT PLOTS
+# ================================================================
+
+def _plot_isolated_effects(data, output_dir, param_dims, metric_defs, env_label):
+    """
+    Generic function to produce isolated parameter effect plots.
+    
+    For each (metric × parameter) combination, generates one plot with N lines,
+    where N = number of values for that parameter. Each line is the round-by-round
+    average across ALL other configurations sharing that parameter value.
+    
+    This isolates the marginal effect of each parameter.
+    """
+    iso_dir = os.path.join(output_dir, "isolated_effects")
+    os.makedirs(iso_dir, exist_ok=True)
+    
+    colors_pool = ['#2196F3', '#E91E63', '#4CAF50', '#FF9800', '#9C27B0',
+                   '#00BCD4', '#FF5722', '#795548', '#607D8B']
+    markers = ['o', 's', '^', 'D', 'v', 'P', 'X', 'h']
+    
+    for metric_key, metric_title, metric_slug in metric_defs:
+        for param_name, param_config_key in param_dims:
+            # Collect unique values for this parameter
+            param_values = sorted(set(
+                e['config'].get(param_config_key)
+                for e in data
+                if e['config'].get(param_config_key) is not None
+            ))
+            
+            if len(param_values) < 2:
+                continue  # Nothing to compare
+            
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            for vi, val in enumerate(param_values):
+                # Collect all entries with this parameter value
+                matching = [
+                    e for e in data
+                    if e['config'].get(param_config_key) == val
+                    and metric_key in e['metrics']
+                ]
+                
+                if not matching:
+                    continue
+                
+                # Average the metric across all matching configs, round by round
+                n_rounds = max(len(e['metrics'][metric_key]) for e in matching)
+                round_avgs = []
+                round_stds = []
+                
+                for r in range(n_rounds):
+                    round_vals = []
+                    for e in matching:
+                        series = e['metrics'][metric_key]
+                        if r < len(series) and series[r] is not None:
+                            round_vals.append(series[r])
+                    
+                    if round_vals:
+                        round_avgs.append(np.mean(round_vals))
+                        round_stds.append(np.std(round_vals))
+                    else:
+                        round_avgs.append(np.nan)
+                        round_stds.append(0)
+                
+                rounds = range(1, n_rounds + 1)
+                color = colors_pool[vi % len(colors_pool)]
+                marker = markers[vi % len(markers)]
+                
+                ax.plot(rounds, round_avgs, marker=marker, label=f'{param_name}={val}',
+                        color=color, linewidth=2, markersize=4)
+                ax.fill_between(rounds,
+                                np.array(round_avgs) - np.array(round_stds),
+                                np.array(round_avgs) + np.array(round_stds),
+                                alpha=0.15, color=color)
+            
+            ax.set_ylim(-0.05, 1.15)
+            ax.axhline(y=0.5, color='gray', linestyle=':', alpha=0.3)
+            ax.grid(True, alpha=0.3)
+            ax.set_xlabel('Round', fontsize=12)
+            ax.set_ylabel(metric_title, fontsize=12)
+            ax.set_title(f'{metric_title} by {param_name}\n(averaged across all other parameters)',
+                         fontsize=13, fontweight='bold')
+            ax.legend(fontsize=10, loc='best')
+            plt.tight_layout()
+            
+            fname = f'{metric_slug}_by_{param_config_key}.png'
+            path = os.path.join(iso_dir, fname)
+            fig.savefig(path, dpi=150)
+            print(f"  Saved {path}")
+            plt.close(fig)
+
+
+def plot_signaling_isolated_effects(file_path):
+    """Generate isolated parameter effect plots for signaling game sweeps."""
+    print(f"Generating isolated parameter effect plots...")
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    
+    output_dir = os.path.dirname(file_path)
+    
+    param_dims = [
+        ('Memory', 'memory_limit'),
+        ('Topology', 'topology'),
+        ('Senders', 'num_senders'),
+        ('Receivers', 'num_receivers'),
+    ]
+    
+    metric_defs = [
+        ('mean_deception_rate', 'Deception Rate', 'deception'),
+        ('mean_trust_rate', 'Trust Rate', 'trust'),
+        ('mean_informed_trust_rate', 'Informed Trust Rate', 'informed_trust'),
+        ('mean_deception_success', 'Deception Success Rate', 'deception_success'),
+        ('mean_receiver_accuracy', 'Receiver Accuracy', 'receiver_accuracy'),
+    ]
+    
+    _plot_isolated_effects(data, output_dir, param_dims, metric_defs, 'Signaling')
+    print(f"All isolated effect plots saved to {os.path.join(output_dir, 'isolated_effects')}/")
+
+
+def plot_pgg_isolated_effects(file_path):
+    """Generate isolated parameter effect plots for PGG sweeps."""
+    print(f"Generating isolated PGG parameter effect plots...")
+    with open(file_path, 'r') as f:
+        data = json.load(f)
+    
+    output_dir = os.path.dirname(file_path)
+    
+    param_dims = [
+        ('Agents', 'num_agents'),
+        ('Multiplier', 'multiplier'),
+        ('Memory', 'memory_limit'),
+        ('Observation', 'observation_type'),
+    ]
+    
+    metric_defs = [
+        ('mean_cooperation', 'Cooperation Rate', 'cooperation'),
+        ('mean_entropy', 'Behavioral Entropy', 'entropy'),
+        ('mean_defector_ratio', 'Defector Ratio', 'defector'),
+        ('mean_gini', 'Reward Inequality (Gini)', 'gini'),
+    ]
+    
+    _plot_isolated_effects(data, output_dir, param_dims, metric_defs, 'PGG')
+    print(f"All isolated PGG effect plots saved to {os.path.join(output_dir, 'isolated_effects')}/")
+
+
 def auto_detect_and_plot(file_path):
     """Auto-detect environment type and call appropriate plot function."""
     with open(file_path, 'r') as f:
@@ -758,15 +904,21 @@ def auto_detect_and_plot(file_path):
     if is_signaling:
         # Always generate the original per-line plots
         plot_signaling_results(file_path)
-        # For large sweeps, also generate summary plots
+        # For large sweeps, also generate summary + isolated effect plots
         if n_configs > 8:
             print(f"\nLarge sweep detected ({n_configs} configs). Generating summary plots...")
             plot_signaling_summary(file_path)
+        if n_configs > 3:
+            print(f"\nGenerating isolated parameter effect plots...")
+            plot_signaling_isolated_effects(file_path)
     else:
         plot_sweep_results(file_path)
         if n_configs > 8:
             print(f"\nLarge sweep detected ({n_configs} configs). Generating summary plots...")
             plot_pgg_summary(file_path)
+        if n_configs > 3:
+            print(f"\nGenerating isolated parameter effect plots...")
+            plot_pgg_isolated_effects(file_path)
 
 
 if __name__ == "__main__":
