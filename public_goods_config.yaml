@@ -1,7 +1,8 @@
 # ============================================================
-# PUBLISHABLE Public Goods Game Configuration
+# PUBLISHABLE Public Goods Game Configuration (Trimmed)
 # ============================================================
-# 36 configs × 30 trials = 1,080 experiments (~35 hours)
+# 18 configs × 30 trials = 540 experiments (~15 hours)
+# Observation type fixed to "full" (preliminary data showed no effect)
 # Usage: python3 main.py --mode sweep --config public_goods_config.yaml
 # ============================================================
 
@@ -12,11 +13,11 @@ think: false
 
 environment: "public_good"
 
-# --- Sweep Grid (3 × 2 × 3 × 2 = 36 configurations) ---
+# --- Sweep Grid (3 × 2 × 3 = 18 configurations) ---
 num_agents: [3, 5, 7]                  # Group size effect on cooperation
 multiplier: [1.2, 2.0]                 # Weak vs. strong collective incentive
 memory_limit: [1, 3, 5]               # Short, medium, long-term memory
-observation_type: ["full", "partial"]  # Transparency: see all contributions vs. only total pool
+observation_type: ["full"]             # Fixed: partial showed no effect at M=1.2
 
 # --- Fixed Parameters ---
 rounds: 20

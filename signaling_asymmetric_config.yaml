@@ -1,8 +1,8 @@
 # ============================================================
 # PUBLISHABLE Signaling Game — Asymmetric Payoffs (Treatment)
 # ============================================================
-# 54 configs × 30 trials = 1,620 experiments (~36 hours)
-# Same grid as symmetric for direct A/B comparison
+# 36 configs × 30 trials = 1,080 experiments (~24 hours)
+# Receivers reduced to [2, 5] (symmetric data showed <2% effect of R count)
 # Usage: python3 main.py --mode sweep --config signaling_asymmetric_config.yaml
 # ============================================================
 
@@ -13,9 +13,9 @@ think: false
 
 environment: "signaling_game"
 
-# --- Sweep Grid (3 × 3 × 2 × 3 = 54 configurations) ---
+# --- Sweep Grid (3 × 2 × 2 × 3 = 36 configurations) ---
 num_senders: [2, 3, 5]
-num_receivers: [2, 3, 5]
+num_receivers: [2, 5]          # Trimmed: R=3 dropped (symmetric showed <2% marginal effect)
 topology: ["full", "ring"]
 memory_limit: [1, 3, 5]
 
